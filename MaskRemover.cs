@@ -33,7 +33,6 @@ public class MaskRemover : Mod, ITogglableMod {
         }
         if (masks.All(obj => obj != null)) {
             foreach (GameObject mask in masks) {
-                Log(mask.transform.localScale);
                 mask.transform.localScale = new Vector3(0, 0, 0);
             }
             ModHooks.HeroUpdateHook -= PollForMasks;
