@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class MaskRemover : Mod, ITogglableMod {
     internal static MaskRemover Instance;
-    private GameObject[] masks = new GameObject[9];
+    private GameObject[] masks;
 
     public MaskRemover() : base("Mask Remover") {
        Instance = this;
@@ -15,12 +15,17 @@ public class MaskRemover : Mod, ITogglableMod {
         Log("Initializing");
 
         Instance = this;
-        ModHooks.HeroUpdateHook += PollForMasks;
+        ModHooks.SavegameLoadHook += InitiateMaskPoll;
 
         Log("Initialized");
     }
 
     public override string GetVersion() => GetType().Assembly.GetName().Version.ToString();
+
+    private void InitiateMaskPoll(int _) {
+        masks = new GameObject[9];
+        ModHooks.HeroUpdateHook += PollForMasks;
+    }
 
     private void PollForMasks() {
         foreach (int num in Enumerable.Range(1, 9)) {
@@ -42,5 +47,6 @@ public class MaskRemover : Mod, ITogglableMod {
             }
         }
         ModHooks.HeroUpdateHook -= PollForMasks;
+        ModHooks.SavegameLoadHook -= InitiateMaskPoll;
     }
 }
