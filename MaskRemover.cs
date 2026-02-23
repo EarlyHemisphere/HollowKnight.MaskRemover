@@ -1,15 +1,14 @@
-﻿using Modding;
-using System.Linq;
+using Modding;
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace MaskRemover {
-    public class MaskRemover: Mod, ITogglableMod {
+    public class MaskRemover : Mod, ITogglableMod {
         internal static MaskRemover instance;
-        private GameObject[] masks;
+        private const string HealthDisplayFsm = "health_display";
+        private readonly List<GameObject> masks = new List<GameObject>();
 
-
-        public MaskRemover(): base("Mask Remover") {
+        public MaskRemover() : base("Mask Remover") {
             instance = this;
         }
 
@@ -17,42 +16,49 @@ namespace MaskRemover {
             Log("Initializing");
 
             instance = this;
-            masks = new GameObject[9];
-            ModHooks.HeroUpdateHook += PollForMasks;
-            UnityEngine.SceneManagement.SceneManager.activeSceneChanged += SceneChanged;
+            On.PlayMakerFSM.OnEnable += OnFsmEnable;
+            HideExistingMasks();
 
             Log("Initialized");
         }
 
         public override string GetVersion() => GetType().Assembly.GetName().Version.ToString();
 
-        private void SceneChanged(Scene _, Scene to) {
-            if (to.name == Constants.MENU_SCENE) {
-                masks = new GameObject[9];
-                ModHooks.HeroUpdateHook += PollForMasks;
+        private void HideExistingMasks() {
+            if (GameCameras.instance == null) return;
+            GameObject hudCanvas = GameCameras.instance.hudCanvas;
+            if (hudCanvas == null) return;
+
+            foreach (PlayMakerFSM fsm in hudCanvas.GetComponentsInChildren<PlayMakerFSM>(true)) {
+                if (fsm.FsmName == HealthDisplayFsm) {
+                    HideMask(fsm.gameObject);
+                }
             }
         }
 
-        private void PollForMasks() {
-            foreach (int num in Enumerable.Range(0, 9)) {
-                masks[num] = GameObject.Find("Health " + (num + 1));
+        private void OnFsmEnable(On.PlayMakerFSM.orig_OnEnable orig, PlayMakerFSM self) {
+            orig(self);
+
+            if (self.FsmName == HealthDisplayFsm) {
+                HideMask(self.gameObject);
             }
-            if (masks.All(obj => obj != null)) {
-                foreach (GameObject mask in masks) {
-                    mask.transform.localScale = new Vector3(0, 0, 0);
-                }
-                ModHooks.HeroUpdateHook -= PollForMasks;
+        }
+
+        private void HideMask(GameObject mask) {
+            if (!masks.Contains(mask)) {
+                masks.Add(mask);
             }
+            mask.transform.localScale = Vector3.zero;
         }
 
         public void Unload() {
-            if (masks.All(obj => obj != null)) {
-                foreach (GameObject mask in masks) {
+            On.PlayMakerFSM.OnEnable -= OnFsmEnable;
+            foreach (GameObject mask in masks) {
+                if (mask != null) {
                     mask.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
                 }
             }
-            ModHooks.HeroUpdateHook -= PollForMasks;
-            UnityEngine.SceneManagement.SceneManager.activeSceneChanged -= SceneChanged;
+            masks.Clear();
         }
     }
 }
